@@ -1,3 +1,5 @@
+import os
+
 import jax
 from brax import base
 from brax.envs.base import PipelineEnv, State
@@ -5,11 +7,25 @@ from brax.io import mjcf
 from jax import numpy as jnp
 
 
+_ENV_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+_ASSETS_DIR = os.path.join(_ENV_DIR, "assets")
+
+
+def _resolve_asset_path(path: str) -> str:
+    if os.path.isabs(path):
+        return path
+    for prefix in ("envs/assets/", "assets/"):
+        if path.startswith(prefix):
+            path = path[len(prefix) :]
+            break
+    return os.path.join(_ASSETS_DIR, path)
+
+
 class ArmEnvs(PipelineEnv):
     def __init__(self, backend="mjx", **kwargs):
         # Configure environment information (e.g. env name, noise scale, observation dimension, goal indices) and load XML
         self._set_environment_attributes()
-        xml_path = self._get_xml_path()
+        xml_path = _resolve_asset_path(self._get_xml_path())
         sys = mjcf.load(xml_path)
 
         # Configure backend

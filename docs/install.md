@@ -1,5 +1,11 @@
 ## Environment creation
-The entire process of installing the benchmark is just one step using the conda `environment.yml` file.
+For CUDA 13 on Linux or WSL2, install JAX's CUDA extra together with JaxGCRL:
+```bash
+pip install -e ".[train]" "jax[cuda13]"
+```
+
+If you prefer conda, the included `environment.yml` delegates the JAX CUDA
+runtime to the same pip extra:
 ```bash
 conda env create -f environment.yml
 ```

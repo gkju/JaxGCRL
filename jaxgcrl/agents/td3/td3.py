@@ -17,7 +17,7 @@
 import functools
 import logging
 import time
-from typing import Any, Callable, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, NamedTuple, Optional, Sequence, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -29,7 +29,6 @@ from brax.training.acme import running_statistics, specs
 from brax.training.acme.types import NestedArray
 from brax.training.replay_buffers_test import jit_wrap
 from brax.training.types import Params, Policy, PRNGKey
-from brax.v1 import envs as envs_v1
 from flax.struct import dataclass
 
 from jaxgcrl.envs.wrappers import TrajectoryIdWrapper
@@ -41,8 +40,8 @@ from . import networks as networks
 
 Metrics = types.Metrics
 # Transition = types.Transition
-Env = Union[envs.Env, envs_v1.Env, envs_v1.Wrapper]
-State = Union[envs.State, envs_v1.State]
+Env = envs.Env
+State = envs.State
 
 
 def soft_update(target_params: Params, online_params: Params, tau) -> Params:
@@ -216,8 +215,8 @@ class TD3:
     def train_fn(
         self,
         config,
-        train_env: Union[envs_v1.Env, envs.Env],
-        eval_env: Optional[Union[envs_v1.Env, envs.Env]] = None,
+        train_env: Env,
+        eval_env: Optional[Env] = None,
         randomization_fn: Optional[
             Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System]]
         ] = None,
@@ -265,18 +264,14 @@ class TD3:
 
         assert config.num_envs % device_count == 0
         env = train_env
-        if isinstance(env, envs.Env):
-            wrap_for_training = envs.training.wrap
-        else:
-            wrap_for_training = envs_v1.wrappers.wrap_for_training
-
+        wrap_for_training = envs.training.wrap
         rng = jax.random.PRNGKey(config.seed)
         rng, key = jax.random.split(rng)
         v_randomization_fn = None
         if randomization_fn is not None:
             v_randomization_fn = functools.partial(
                 randomization_fn,
-                rng=jax.random.split(key, self.num_envs // jax.process_count() // local_devices_to_use),
+                rng=jax.random.split(key, config.num_envs // jax.process_count() // local_devices_to_use),
             )
         env = TrajectoryIdWrapper(env)
         env = wrap_for_training(
@@ -425,12 +420,12 @@ class TD3:
         def get_experience(
             normalizer_params: running_statistics.RunningStatisticsState,
             policy_params: Params,
-            env_state: Union[envs.State, envs_v1.State],
+            env_state: State,
             buffer_state: ReplayBufferState,
             key: PRNGKey,
         ) -> Tuple[
             running_statistics.RunningStatisticsState,
-            Union[envs.State, envs_v1.State],
+            State,
             ReplayBufferState,
         ]:
             policy = make_policy(
@@ -472,7 +467,7 @@ class TD3:
             env_state: envs.State,
             buffer_state: ReplayBufferState,
             key: PRNGKey,
-        ) -> Tuple[TrainingState, Union[envs.State, envs_v1.State], ReplayBufferState, Metrics]:
+        ) -> Tuple[TrainingState, State, ReplayBufferState, Metrics]:
             experience_key, training_key = jax.random.split(key)
             normalizer_params, env_state, buffer_state = get_experience(
                 training_state.normalizer_params,

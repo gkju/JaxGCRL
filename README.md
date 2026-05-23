@@ -44,15 +44,15 @@ quick experimentation with goal-conditioned self-supervised reinforcement learni
 
 After cloning the repository, run one of the following commands.
 
-With GPU on Linux:
+With GPU on Linux or WSL2 using CUDA 13:
 ```bash
-pip install -e . -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+pip install -e ".[train]" "jax[cuda13]"
 ```
 
 > [!NOTE]  
-> Make sure you have the correct CUDA version installed, i.e. CUDA >= 12.3.
-> You can check your CUDA version with `nvcc --version` command.
-> If you have an older version, you can create a new conda environment with the correct version of CUDA and JaxGCRL package using the following command:
+> JAX's CUDA 13 wheels require a recent NVIDIA driver. The current JAX installation
+> guide recommends driver version >= 580 for CUDA 13 on Linux.
+> If you prefer a conda environment, create one with:
 > ```bash
 > conda env create -f environment.yml
 > ```
@@ -60,14 +60,14 @@ pip install -e . -f https://storage.googleapis.com/jax-releases/jax_cuda_release
 With CPU on Mac:
 ```bash
 export SDKROOT="$(xcrun --show-sdk-path)" # may be needed to build brax dependencies
-pip install -e . 
+pip install -e ".[train]" jax
 ```
 
 #### PyPI
 
 The package is also available on PyPI:
 ```bash
-pip install jaxgcrl -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+pip install "jaxgcrl[train]" "jax[cuda13]"
 ```
 
 <h3 name="start" id="start">Quick Start 🚀 </h3>
@@ -294,4 +294,3 @@ JAX-native environments:
 - [XLand-MiniGrid](https://github.com/corl-team/xland-minigrid): Meta-RL gridworld environments inspired by XLand and MiniGrid.
 - [Craftax](https://github.com/MichaelTMatthews/Craftax): (Crafter + NetHack) in JAX.
 - [JaxMARL](https://github.com/FLAIROx/JaxMARL): Multi-agent RL in Jax.
-

@@ -1,4 +1,5 @@
 import argparse
+import importlib
 import logging
 import math
 import os
@@ -8,12 +9,8 @@ from typing import List
 
 import flax.linen as nn
 import jax
-import wandb_osh
 from brax.io import html
-from matplotlib import pyplot as plt
-from wandb_osh.hooks import TriggerWandbSyncHook
 
-import wandb
 from jaxgcrl.envs.ant import Ant
 from jaxgcrl.envs.ant_ball import AntBall
 from jaxgcrl.envs.ant_ball_maze import AntBallMaze
@@ -32,6 +29,17 @@ from jaxgcrl.envs.pusher import Pusher, PusherReacher
 from jaxgcrl.envs.pusher2 import Pusher2
 from jaxgcrl.envs.reacher import Reacher
 from jaxgcrl.envs.simple_maze import SimpleMaze
+
+
+def _train_dependency(module_name: str):
+    try:
+        return importlib.import_module(module_name)
+    except ImportError as exc:
+        raise ImportError(
+            f"{module_name} is required for JaxGCRL training, rendering, or logging. "
+            "Install JaxGCRL with the training extra, e.g. `pip install -e .[train]`."
+        ) from exc
+
 
 legal_envs = (
     "ant",
@@ -202,8 +210,12 @@ class MetricsRecorder:
         self.max_x, self.min_x = total_env_steps * 1.1, 0
 
         if mode == "offline":
+            wandb_osh = _train_dependency("wandb_osh")
             wandb_osh.set_log_level("ERROR")
-        self.trigger_sync = TriggerWandbSyncHook()
+            hooks = _train_dependency("wandb_osh.hooks")
+            self.trigger_sync = hooks.TriggerWandbSyncHook()
+        else:
+            self.trigger_sync = lambda: None
 
     def record(self, num_steps, metrics):
         self.times.append(datetime.now())
@@ -218,6 +230,7 @@ class MetricsRecorder:
             self.y_data_err[key].append(metrics.get(f"{key}_std", 0))
 
     def log_wandb(self):
+        wandb = _train_dependency("wandb")
         data_to_log = {}
         for key, value in self.y_data.items():
             data_to_log[key] = value[-1]
@@ -228,6 +241,7 @@ class MetricsRecorder:
             self.trigger_sync()
 
     def plot_progress(self):
+        plt = _train_dependency("matplotlib.pyplot")
         num_plots = len(self.y_data)
         # Calculate number of rows needed for 2 columns
         num_rows = (num_plots + 1) // 2
@@ -313,6 +327,7 @@ def render(make_policy, params, env, exp_dir, exp_name, num_steps):
     Returns:
     None
     """
+    wandb = _train_dependency("wandb")
     policy = make_policy(params)
     jit_env_reset = jax.jit(env.reset)
     jit_env_step = jax.jit(env.step)
@@ -340,6 +355,7 @@ def render(make_policy, params, env, exp_dir, exp_name, num_steps):
 
 def render_policy(params, save_path, env, actor, eval_env, vis_length):
     """Renders the policy and saves it as an HTML file."""
+    wandb = _train_dependency("wandb")
 
     # JIT compile the rollout function
     @jax.jit

@@ -1,14 +1,23 @@
+import importlib
 import logging
 import os
 import pickle
 import pprint
 
-import tyro
 from brax.io import model
 
-import wandb
 from jaxgcrl.utils.config import Config
 from jaxgcrl.utils.env import MetricsRecorder, create_env
+
+
+def _train_dependency(module_name: str):
+    try:
+        return importlib.import_module(module_name)
+    except ImportError as exc:
+        raise ImportError(
+            f"{module_name} is required for the JaxGCRL CLI. "
+            "Install JaxGCRL with the training extra, e.g. `pip install -e .[train]`."
+        ) from exc
 
 
 def main(config: Config):
@@ -47,6 +56,7 @@ def main(config: Config):
 
     logging.info("Arguments:\n%s", pprint.pformat(info))
 
+    wandb = _train_dependency("wandb")
     wandb.init(
         project=config.run.wandb_project_name,
         group=config.run.wandb_group,
@@ -106,6 +116,7 @@ def main(config: Config):
 
 
 def cli():
+    tyro = _train_dependency("tyro")
     tyro.cli(
         main,
         config=(
